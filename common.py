@@ -4,6 +4,19 @@ import datetime
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, HttpUrl, model_validator
+from errors import InputValidationError
+
+
+class URLModel(BaseModel):
+    text: HttpUrl
+
+    @model_validator(mode='after')
+    def add_check(self):
+        words = ('ozon', 'seller', 'products')
+        if not all(word in str(self.text) for word in words):
+            raise InputValidationError(f'URL должен содержать слова: {words}')
+        return self
 
 
 def generate_list_pages(from_: int, to_: int, chunk_size: int) -> [int]:
@@ -40,6 +53,14 @@ def change_category_in_url(url: str, category: str) -> str | bool:
     for i in url_splitted:
         url_str += i + '/'
     return url_str[:-1]
+
+
+def check_domain_in_url(url: str):
+    """
+    Извлечение домена
+    """
+    url_splitted = url.split('/')
+    return url_splitted[2]
 
 
 def get_seller_id_from_url(url: str) -> str | bool:

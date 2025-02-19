@@ -2,7 +2,7 @@ import datetime
 import os
 from dotenv import load_dotenv
 from common import edit_llc_info, edit_items_to_df, edit_get_items_list, edit_categories, generate_list_pages, \
-    change_category_in_url, get_seller_id_from_url, save_csv
+    change_category_in_url, get_seller_id_from_url, save_csv, check_domain_in_url, URLModel
 from requests_handler import gen_params_for_llc_info, send_request, gen_params_for_items
 import asyncio
 from errors import GetDataError, EditDataError
@@ -22,22 +22,33 @@ async def get_all_items_ozon(input_url: str) -> bool:
     start_dt = datetime.datetime.now()
     print(f'{start_dt} START!')
 
+    # проверка ссылки
+    try:
+        validate_url = URLModel(**{'text': input_url})
+    except Exception as e:
+        print(e)
+        return False
+
+    # взятие домена для запросов
+    domain = check_domain_in_url(input_url)
+
     # формирование параметров для запроса ЮЛ
     params_llc = gen_params_for_llc_info(input_url)
-
     # создание и получение 2 задач: данные по ЮЛ, данные по категориям
-    tasks = (send_request(cookies_str=COOKIES, params=params_llc),
+    tasks = (send_request(cookies_str=COOKIES, params=params_llc, domain=domain),
              send_request(cookies_str=COOKIES, url=input_url, json_loads=False))
     responses_list = await asyncio.gather(*tasks)
     # если данных по категориям нет, то далее выполнение невозможно
     # (можно сделать Намного более гибкие обработчики ошибок)
     if not responses_list[0].status or not responses_list[1].status:
         raise GetDataError()
+
     # редактирование данных по ЮЛ и категориям
     llc_info = edit_llc_info(responses_list[0].object)
     categories_list = edit_categories(responses_list[1].object)
     if not categories_list:
         raise EditDataError()
+
     # общий словарь для наполнения сырыми данными
     main_items_dict = {}
     # перебираем категории ЮЛ
@@ -57,7 +68,7 @@ async def get_all_items_ozon(input_url: str) -> bool:
             # (универсальный способ)
             params_list = [gen_params_for_items(input_url_upd_cat, page) for page in chunk]
             # создание и получение данных асинхронно
-            tasks = (send_request(cookies_str=COOKIES, params=params) for params in params_list)
+            tasks = (send_request(cookies_str=COOKIES, params=params, domain=domain) for params in params_list)
             responses_list = await asyncio.gather(*tasks)
             # проверка есть ли хоть в 1 запросе данные
             if all(response.status is False for response in responses_list):
@@ -69,6 +80,7 @@ async def get_all_items_ozon(input_url: str) -> bool:
                 cat_parse = False
             # обновляем общий список с первичными данными
             main_items_dict[name_cat].extend([item for sublist in items_lists if sublist is not None for item in sublist])
+
     # получаем идентификатор продавца
     seller_id = get_seller_id_from_url(input_url)
     # финально обрабатываем данные и формируем дата-фрейм

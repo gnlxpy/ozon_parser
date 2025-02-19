@@ -14,7 +14,7 @@ load_dotenv()
 
 # загружаем Юзер-Агент браузера, основной шлюз АПИ (может измениться от ГЕО!), формируем заголовки для запросов
 USER_AGENT = os.getenv('USER_AGENT')
-URL_API = 'https://www.ozon.ru/api/entrypoint-api.bx/page/json/v2'
+POSTFIX_URL_API = os.getenv('POSTFIX_URL_API')
 HEADERS = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
@@ -68,9 +68,13 @@ def gen_params_for_llc_info(input_url: str) -> dict | bool:
     }
 
 
+def get_url_api(domain: str) -> str:
+    return f'https://{domain}{POSTFIX_URL_API}'
+
+
 async def send_request(cookies_str: str, headers=None, type_: RequestTypes = RequestTypes.GET,
-                       url: str = URL_API, params: dict = None, data: dict = None, json_loads: bool = True,
-                       max_attempts: int = 5) -> Response | None:
+                       url: str = None, params: dict = None, data: dict = None, json_loads: bool = True,
+                       max_attempts: int = 5, domain: str = None) -> Response | None:
     """
     Отправка запроса (дефолтная функция)
     :param cookies_str: куки
@@ -81,6 +85,7 @@ async def send_request(cookies_str: str, headers=None, type_: RequestTypes = Req
     :param data: тело запроса
     :param json_loads: флажок конвертации json в объект пайтон
     :param max_attempts: число попыток
+    :param domain: домен для запросов по апи
     :return: статус + данные
     """
     # предварительная подготовка заголовков, куки, тела запроса
@@ -94,6 +99,8 @@ async def send_request(cookies_str: str, headers=None, type_: RequestTypes = Req
         data_json = json.dumps(data)
     else:
         data_json = None
+    if url is None:
+        url = get_url_api(domain)
     # инициализация асинхронного клиента
     async with httpx.AsyncClient() as client:
         while True:
