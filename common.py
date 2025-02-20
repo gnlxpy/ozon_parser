@@ -9,6 +9,9 @@ from errors import InputValidationError
 
 
 class URLModel(BaseModel):
+    """
+    Модель-валидатор вводимого адреса
+    """
     text: HttpUrl
 
     @model_validator(mode='after')

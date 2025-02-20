@@ -8,7 +8,7 @@ import os
 from common import cookies_str_to_dict
 from pydantic import BaseModel, Field
 
-
+# загрузка переменных для окружения
 load_dotenv()
 
 
@@ -24,12 +24,18 @@ HEADERS = {
 
 # типы запросов (изначально было не ясно какие будут нужны)
 class RequestTypes(Enum):
+    """
+    Предусмотренные типы запросов
+    """
     GET = 'get'
     POST = 'post'
 
 
 # формат ответа функции
 class Response(BaseModel):
+    """
+    Модель ответа после опроса ресурса
+    """
     status: bool = Field(description='Статус успешного или неуспешного выполнения')
     object: str | dict | None = Field(description='Строка если возвращается страница или словарь если был обработан json')
 
